@@ -232,6 +232,7 @@ class IPAMClient(BlockReaderWriter):
         configured pools are at or near exhaustion, this method may return
         fewer than requested addresses.
         """
+        _log.debug("Auto-assigning %s IPv4 and %s IPv6 addresses", num_v4, num_v6)
 
         v4_address_list = self._auto_assign(4, num_v4, primary_key,
                                             attributes, pool[0])
