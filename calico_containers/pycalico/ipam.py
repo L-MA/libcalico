@@ -65,10 +65,11 @@ class BlockReaderWriter(DatastoreClient):
         """
         Write the block using an atomic Compare-and-swap.
         """
-
+        _log.debug("Compare and swap block %s", block)
         # If the block has a db_result, CAS against that.
         if block.db_result is not None:
             try:
+                _log.debug("Calling update on etcd client with %s", block.update_result())
                 self.etcd_client.update(block.update_result())
             except ValueError:
                 raise CASError(str(block.cidr))
@@ -77,6 +78,7 @@ class BlockReaderWriter(DatastoreClient):
             key = _datastore_key(block.cidr)
             value = block.to_json()
             try:
+                _log.debug("Writing a new block to etcd with key %s", key)
                 self.etcd_client.write(key, value, prevExist=False)
             except EtcdAlreadyExist:
                 raise CASError(str(block.cidr))
@@ -91,6 +93,7 @@ class BlockReaderWriter(DatastoreClient):
         blocks for the specified version.
         """
         # Construct the path
+        _log.debug("")
         path = IPAM_HOST_AFFINITY_PATH % {"hostname": host,
                                           "version": version}
         block_ids = []
@@ -124,6 +127,7 @@ class BlockReaderWriter(DatastoreClient):
         :return: The block CIDR of the new block.
         """
         # Get the pools and verify we got a valid one, or none.
+        _log.debug("")
         ip_pools = self.get_ip_pools(version)
         if pool is not None:
             if pool not in ip_pools:
@@ -156,6 +160,7 @@ class BlockReaderWriter(DatastoreClient):
         """
         Claim a block we think is free.
         """
+        _log.debug("")
         block_id = str(block_cidr)
         path = IPAM_HOST_AFFINITY_PATH % {"hostname": host,
                                           "version": block_cidr.version}
@@ -207,6 +212,7 @@ def _datastore_key(block_cidr):
     :param block_cidr: IPNetwork representing the block
     :return: etcd key as string.
     """
+    _log.debug("")
     path = IPAM_BLOCK_PATH % {'version': block_cidr.version}
     return path + str(block_cidr).replace("/", "-")
 
@@ -262,7 +268,7 @@ class IPAMClient(BlockReaderWriter):
         automatically choose a pool.
         :return:
         """
-
+        _log.debug("")
         block_ids = iter(self._get_affine_blocks(my_hostname,
                                                  ip_version,
                                                  pool))
@@ -324,6 +330,7 @@ class IPAMClient(BlockReaderWriter):
         JSON serializable.
         :return: List of assigned IPs.
         """
+        _log.debug("Auto-assigning block with id %s with %s IP addresses", block_id, num)
         for _ in xrange(RETRIES):
             block = self._read_block(block_id)
             unconfirmed_ips = block.auto_assign(num=num,
@@ -356,6 +363,7 @@ class IPAMClient(BlockReaderWriter):
         :return: None.
         """
         assert isinstance(address, IPAddress)
+        _log.debug("")
         block_cidr = get_block_cidr_for_address(address)
 
         for _ in xrange(RETRIES):
@@ -400,6 +408,7 @@ class IPAMClient(BlockReaderWriter):
         :return: Set of addresses that were already unallocated.
         """
         assert isinstance(addresses, (set, frozenset))
+        _log.debug("")
         unallocated = set()
         # sort the addresses into blocks
         addrs_by_block = {}
@@ -424,7 +433,7 @@ class IPAMClient(BlockReaderWriter):
         :param addresses: List of addresses to release.
         :return: List of addresses that were already unallocated.
         """
-
+        _log.debug("")
         for _ in xrange(RETRIES):
             try:
                 block = self._read_block(block_cidr)
