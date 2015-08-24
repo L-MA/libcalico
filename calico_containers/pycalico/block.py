@@ -88,7 +88,6 @@ class AllocationBlock(object):
         """
         Convert to a JSON representation for writing to etcd.
         """
-        _log.debug("")
         json_dict = {AllocationBlock.CIDR: str(self.cidr),
                      AllocationBlock.AFFINITY:
                          AllocationBlock.HOST_AFFINITY_T % self.host_affinity,
@@ -101,7 +100,6 @@ class AllocationBlock(object):
         """
         Convert a JSON representation into an instance of AllocationBlock.
         """
-        _log.debug("")
         json_dict = json.loads(etcd_result.value)
         cidr_prefix = IPNetwork(json_dict[AllocationBlock.CIDR])
 
@@ -131,7 +129,6 @@ class AllocationBlock(object):
         result.value.
         :return:
         """
-        _log.debug("")
         self.db_result.value = self.to_json()
         return self.db_result
 
@@ -157,7 +154,6 @@ class AllocationBlock(object):
         if affinity_check and my_hostname != self.host_affinity:
             raise NoHostAffinityWarning("Host affinity is %s" %
                                         self.host_affinity)
-        _log.debug("")
 
         ordinals = []
         # Walk the allocations until we find enough.
@@ -180,6 +176,7 @@ class AllocationBlock(object):
                 # Convert ordinal to IP.
                 ip = IPAddress(self.cidr.first + o, version=self.cidr.version)
                 ips.append(ip)
+        _log.debug("Got assigned IP Address(es) %s", ips)
         return ips
 
     def assign(self, address, primary_key, attributes):
@@ -206,8 +203,6 @@ class AllocationBlock(object):
             raise AlreadyAssignedError("%s is already assigned in block %s" % (
                 address, self.cidr))
 
-        _log.debug("")
-
         # Set up attributes
         attr_index = self._find_or_add_attrs(primary_key, attributes)
         self.allocations[ordinal] = attr_index
@@ -218,7 +213,6 @@ class AllocationBlock(object):
         Count the number of free addresses in this block.
         :return: Number of free addresses.
         """
-        _log.debug("")
         count = 0
         for a in self.allocations:
             if a is None:
@@ -235,7 +229,6 @@ class AllocationBlock(object):
         appropriately.
         """
         assert isinstance(addresses, (set, frozenset))
-        _log.debug("")
         deleting_ref_counts = {}
         ordinals = []
         unallocated = set()
@@ -284,7 +277,6 @@ class AllocationBlock(object):
         :param ordinals: list of ordinals of IPs to release (for debugging)
         :return: None.
         """
-        _log.debug("")
         new_indexes = range(len(self.attributes))
         new_attributes = []
         y = 0  # next free slot in new attributes list.
@@ -313,7 +305,6 @@ class AllocationBlock(object):
         Walk the allocations and get a dictionary of reference counts to each
         set of attributes.
         """
-        _log.debug("")
         ref_counts = {}
         for a in self.allocations:
             old_counts = ref_counts.get(a, 0)
@@ -330,13 +321,14 @@ class AllocationBlock(object):
         attr = {AllocationBlock.ATTR_PRIMARY: primary_key,
                 AllocationBlock.ATTR_SECONDARY: attributes}
         attr_index = None
-        _log.debug("")
         for index, exist_attr in enumerate(self.attributes):
             if cmp(attr, exist_attr) == 0:
                 attr_index = index
                 break
+            _log.debug("Found attributes at index %s", attr_index)
         if attr_index is None:
             # Attributes are new, add them.
+            _log.debug("Attributes are new adding new index")
             attr_index = len(self.attributes)
             self.attributes.append(attr)
         return attr_index
